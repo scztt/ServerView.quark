@@ -1,0 +1,20 @@
+(
+name:		"ServerView",
+summary:	"An improved GUI for server information.",
+author:		"scott@artificia.org",
+copyright:	"Frank Scott Carver, 2013",
+license:	"MIT",
+version: 	"0.1.0",
+schelp: 	"ServerView",
+test:		"Test/Singleton_unittest.scd",
+url:		"https://github.com/scztt/singleton.quark",
+dependencies:	[
+	"Singleton@1.0.0",
+	"NodeSnapshot@0.1.0",
+	"WindowViewRecall@1.0.0",
+	"WindowHandleView@1.0.0"
+],
+isCompatible:	true,
+since:		"2013"
+)
+
