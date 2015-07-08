@@ -124,13 +124,22 @@ ServerWidgetBase {
 		^super.newCopyArgs(server, parent).init();
 	}
 
+	*brightenColor {
+		|inColor, amt|
+		var color = Color.fromArray(inColor.asArray);
+		color.red = (color.red + amt).linlin(0,1,0,1);
+		color.green = (color.green + amt).linlin(0,1,0,1);
+		color.blue = (color.blue + amt).linlin(0,1,0,1);
+		^color
+	}
+
 	init {
 		var mod = if (QtGUI.palette.window.asHSV[2] > 0.5) {-0.2} {0.2};
 		buttonColor = QtGUI.palette.button;
-		faintGreen = buttonColor.blend(Color.green, 0.2).brightness(mod);
-		faintRed = buttonColor.blend(Color.red, 0.25).brightness(mod);
-		faintYellow = buttonColor.blend(Color.yellow, 0.25).brightness(mod);
-		faintBlue = buttonColor.blend(Color.blue, 0.25).brightness(mod);
+		faintGreen = ServerWidgetBase.brightenColor(buttonColor.blend(Color.green, 0.2), mod);
+		faintRed = ServerWidgetBase.brightenColor(buttonColor.blend(Color.red, 0.25), mod);
+		faintYellow = ServerWidgetBase.brightenColor(buttonColor.blend(Color.yellow, 0.25), mod);
+		faintBlue = ServerWidgetBase.brightenColor(buttonColor.blend(Color.blue, 0.25), mod);
 
 		brightBlue = Color.hsv(0.555, 1, 0.6 + mod);
 		brightGreen = Color.hsv(0.277, 1, 0.6 + mod);
@@ -314,7 +323,7 @@ ServerStatusWidget : ServerWidgetBase {
 		};
 		counterViews = List();
 		trackedCounts.do({|c|
-			counters[c].view.background_(QtGUI.palette.window.brightness(-0.02));
+			counters[c].view.background_(ServerWidgetBase.brightenColor(QtGUI.palette.window, -0.02));
 			counterViews.add([ counters[c].view, columns:counters[c].span ]);
 			(counters[c].span - 1).do { counterViews.add(nil) }
 		});
