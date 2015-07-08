@@ -6,13 +6,14 @@ copyright:	"Frank Scott Carver, 2013",
 license:	"MIT",
 version: 	"0.1.0",
 schelp: 	"ServerView",
-test:		"Test/Singleton_unittest.scd",
+test:		"Test/ServerView_unittest.scd",
 url:		"https://github.com/scztt/singleton.quark",
 dependencies:	[
 	"Singleton@1.0.0",
 	"NodeSnapshot@0.1.0",
 	"WindowViewRecall@1.0.0",
-	"WindowHandleView@1.0.0"
+	"WindowHandleView@1.0.0",
+	"UnitTesting@2a8f5e18aaa7cd25968ec094bbfa75a7fb3094b6"
 ],
 isCompatible:	true,
 since:		"2013"
