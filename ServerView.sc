@@ -276,7 +276,7 @@ ServerSelectorWidget : ServerWidgetBase {
 	onRunning {
 		if (server.serverRunning) {
 			bootButton.string = "◉ RUNNING";
-			bootButton.stringColor = faintGreen.blendVal
+			bootButton.stringColor = faintGreen;
 			// runningText.string = "running";
 			// runningText.stringColor = faintGreen;
 		} {
@@ -665,7 +665,10 @@ ScopeWidget : ServerWidgetBase {
 			scopeView.yZoom = 0.9;
 			scopeView.waveColors = outChannels.collect {
 				| i |
-				brightBlue.hueAdd(i * 0.65);
+				var h, s, v, a;
+				#h, s, v, a = brightBlue.asHSV();
+				h = (h + (i * 0.65)).min(1).max(0);
+				Color.hsv(h, s, v, a);
 			};
 
 			scopeView.start();
