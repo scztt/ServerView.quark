@@ -1,11 +1,11 @@
 ServerView : Singleton {
-	classvar panelTypes, <>widgets, <keyActions;
+	classvar panelTypes, <>widgets, <actions;
 	var <>view, <window, widgetLayout, <server, <>widgets, containers;
 
 	*initClass {
 		panelTypes = IdentityDictionary();
 		widgets = List[ServerStatusWidget, VolumeWidget, ScopeWidget];
-		keyActions = IdentityDictionary();
+		actions = IdentityDictionary();
 	}
 
 	*default {
@@ -29,12 +29,12 @@ ServerView : Singleton {
 	}
 
 	createView {
-		window = Window(bounds:Rect(0, 0, 235, 200), resizable:true, border:false);
+		window = Window(bounds:Rect(0, 0, 265, 200), resizable:true, border:false);
 		window.autoRememberPosition(\ServerView);
-		view = window.view.minWidth_(235).minHeight_(200);
+		view = window.view.minWidth_(265).minHeight_(200);
 		view.keyDownAction_({
 			|v, char|
-			keyActions[char.asSymbol].value(this);
+			actions[char.asSymbol].value(this);
 		});
 		view.layout_(HLayout(
 			WindowHandleView().maxWidth_(10).minWidth_(10),
@@ -84,7 +84,7 @@ ServerView : Singleton {
 	onClose {
 		|v|
 		window = widgetLayout = view = nil;
-		keyActions.clear;
+		actions.clear;
 	}
 
 	clearView {
@@ -95,10 +95,10 @@ ServerView : Singleton {
 
 	registerKeyAction {
 		| key, action |
-		if (keyActions[key].notNil) {
+		if (actions[key].notNil) {
 			"ServerView - Overriding an existing action for key %".format(key).warn;
 		};
-		keyActions[key] = action;
+		actions[key] = action;
 	}
 
 	server_{
@@ -147,9 +147,9 @@ ServerWidgetBase {
 
 		highlightColor = Color.grey(0.7 + mod);
 
-		this.keyActions.keysValuesDo({
-			|key, val|
-			parent.registerKeyAction(key, val);
+		this.actions.do({
+			|action|
+			parent.registerKeyAction(action.key, action.action);
 		});
 	}
 
@@ -170,35 +170,61 @@ ServerWidgetBase {
 		^Font(fontface, size, bold);
 	}
 
-	keyActions { ^() }
+	actions { ^[] }
 
 	view { this.subclassResponsibility('view') }
 }
 
-ServerSelectorWidget : ServerWidgetBase {
-	var serverList, view, list, runningText, killButton, bootButton, defaultButton, controller;
+ServerViewAction {
+	var <name, <key, <action;
+	*new { |name, key, action| ^super.newCopyArgs(name, key, action) }
+	value { |...args| action.value(*args) }
+	asString { ^name }
+}
 
-	keyActions {
-		^(
-			(27.asAscii.asSymbol): { parent.window.rememberPosition(\ServerView); parent.close() },
-			'n': { server.queryAllNodes(true) },
-			'l': { server.tryPerform(\meter) },
-			'p': { if(server.serverRunning) { TreeSnapshotView(server).autoUpdate().front(); } },
-			' ': { if(server.serverRunning.not) { server.boot } },
-			's': { server.scope(server.options.numOutputBusChannels) },
-			'f': { server.freqscope },
-			'd': {
-				if (server.isLocal or: { server.inProcess }) {
-					server.dumpOSC((server.dumpMode + 1) % 2);
-				}
-			},
-			'm': {
-				if (server.volume.isMuted) { server.unmute } { server.mute }
-			},
-			'0': {
-				server.volume = 0;
-			}
-		)
+ServerSelectorWidget : ServerWidgetBase {
+	var serverList, view, list, runningText, killButton, bootButton, defaultButton, optionsMenu, optionsView, controller;
+
+	actions {
+		^[
+			ServerViewAction("Boot", ' ',
+				{ if(server.serverRunning.not) { server.boot } }),
+
+			ServerViewAction("Options", 'o', {
+				if (optionsView.isNil) {
+					optionsView = ServerOptionsGui(server);
+					optionsView.parent.autoRememberPosition(\ServerOptionsGui);
+					optionsView.parent.onClose_({ optionsView = nil })
+				};
+			}),
+
+			ServerViewAction("Query nodes", 'n',
+				{ server.queryAllNodes(true) }),
+
+			ServerViewAction("Level meters", 'l',
+				{ server.tryPerform(\meter) }),
+
+			ServerViewAction("Tree view", 'p',
+				{ if(server.serverRunning) { TreeSnapshotView(server).autoUpdate().front() } }),
+
+			ServerViewAction("Scope", 's',
+				{ server.scope(server.options.numOutputBusChannels) }),
+
+			ServerViewAction("Frequency scope", 'f',
+				{ server.freqscope }),
+
+			ServerViewAction("Dump OSC", 'd',
+				{ if (server.isLocal or: { server.inProcess }) { server.dumpOSC((server.dumpMode + 1) % 2) } }),
+
+			ServerViewAction("Mute", 'm',
+				{ if (server.volume.isMuted) { server.unmute } { server.mute } }),
+
+			ServerViewAction("Reset volume", '0',
+				{ server.volume = 0 }),
+
+			ServerViewAction("Close", 27.asAscii.asSymbol,
+				{ parent.window.rememberPosition(\ServerView); parent.close() }),
+		];
 	}
 
 	view {
@@ -225,6 +251,7 @@ ServerSelectorWidget : ServerWidgetBase {
 			HLayout(
 				//StaticText().string_("SUPERCOLLIDER").font_(this.font(16, true)),
 				bootButton = (StaticText()
+					.minWidth_(180)
 					.font_(this.font(15, true))
 					//					.maxSize_(22, 22)
 					.mouseUpAction_(this.bootAction(_))
@@ -239,15 +266,25 @@ ServerSelectorWidget : ServerWidgetBase {
 					.font_(this.font(12, true))
 				),
 				defaultButton = (Button()
-					.states_([["+D"]])
 					.action_(this.defaultAction(_))
 					.maxHeight_(18).maxWidth_(22)
 					.canFocus_(false)
 					.font_(this.font(12, true))
 				),
-				[list, \align: \right]
+				[list, \align: \right],
+				[optionsMenu = PopUpMenu().maxHeight_(18).maxWidth_(22), \align: \right]
 			).margins_(0).spacing_(0)
 		);
+
+		this.onDefault;
+
+		optionsMenu.allowsReselection = true;
+		optionsMenu.items = this.actions.collectAs(_.name, Array);
+		optionsMenu.action_({
+			|v|
+			var name = v.items[v.value];
+			this.actions.detect({ |action| action.name == name }).value(server)
+		});
 
 		this.onRunning();
 		this.onDefault();
@@ -276,7 +313,7 @@ ServerSelectorWidget : ServerWidgetBase {
 	onRunning {
 		if (server.serverRunning) {
 			bootButton.string = "◉ RUNNING";
-			bootButton.stringColor = faintGreen.blendVal
+			bootButton.stringColor = faintGreen;
 			// runningText.string = "running";
 			// runningText.stringColor = faintGreen;
 		} {
@@ -402,19 +439,19 @@ NumberCounter {
 }
 
 GraphCounter {
-	var name, units, font, color, min, max, maxColor, minFixed=false, maxFixed=false,
-	<view, heading, number, history, <>span=1
+	var name, units, font, color, <>min, <>max, maxColor, <>minFixed=false, <>maxFixed=false, historySize,
+	<view, heading, number, history, <>span=1, <>round=0.1
 	;
 
 	*new {
-		|name, units, font, color, min, max, maxColor|
-		^super.newCopyArgs(name, units, font, color, min, max, maxColor, min.notNil, max.notNil)
+		|name, units, font, color, min, max, maxColor, historySize=20|
+		^super.newCopyArgs(name, units, font, color, min, max, maxColor, min.notNil, max.notNil, historySize)
 		.init;
 	}
 
 	init {
 		var mod = if (QtGUI.palette.window.asHSV[2] > 0.5) {-0.5} {0.3};
-		history = LinkedList.newFrom(0 ! 20);
+		history = LinkedList.newFrom(0 ! historySize);
 		view = UserView().layout_(VLayout(
 			heading = (StaticText()
 				.string_(name)
@@ -479,7 +516,7 @@ GraphCounter {
 			max = val;
 		};
 
-		number.string = (val.round(0.1).asString + units);
+		number.string = (val.round(round).asString + units);
 		view.refresh();
 	}
 }
@@ -665,7 +702,10 @@ ScopeWidget : ServerWidgetBase {
 			scopeView.yZoom = 0.9;
 			scopeView.waveColors = outChannels.collect {
 				| i |
-				brightBlue.hueAdd(i * 0.65);
+				var h, s, v, a;
+				#h, s, v, a = brightBlue.asHSV();
+				h = (h + (i * 0.65)).min(1).max(0);
+				Color.hsv(h, s, v, a);
 			};
 
 			scopeView.start();
