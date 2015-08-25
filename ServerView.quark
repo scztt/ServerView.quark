@@ -7,7 +7,7 @@ license:	"MIT",
 version: 	"0.1.0",
 schelp: 	"ServerView",
 test:		"Test/ServerView_unittest.scd",
-url:		"https://github.com/scztt/singleton.quark",
+url:		"https://github.com/scztt/ServerView.quark",
 dependencies:	[
 	"Singleton@1.0.0",
 	"NodeSnapshot@0.1.0",
