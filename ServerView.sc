@@ -9,7 +9,7 @@ ServerView : Singleton {
 	}
 
 	*default {
-		^Server.default;
+		^Server.default.name;
 	}
 
 	set {}
