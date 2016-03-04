@@ -1,5 +1,5 @@
 ServerView : Singleton {
-	classvar panelTypes, <>widgets, <actions;
+	classvar panelTypes, <>widgets, <actions, <>border=false;
 	var <>view, <window, widgetLayout, <server, <>widgets, containers;
 
 	*initClass {
@@ -29,7 +29,7 @@ ServerView : Singleton {
 	}
 
 	createView {
-		window = Window(bounds:Rect(0, 0, 265, 200), resizable:true, border:false);
+		window = Window(bounds:Rect(0, 0, 265, 200), resizable:true, border:border);
 		window.autoRememberPosition(\ServerView);
 		view = window.view.minWidth_(265).minHeight_(200);
 		view.keyDownAction_({
