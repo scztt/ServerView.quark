@@ -935,12 +935,3 @@ HistoryWidget : ServerWidgetBase {
 		^view
 	}
 }
-
-+Server {
-	makeGui {
-		var sv = ServerView();
-		sv.front;
-	}
-}
-
-
