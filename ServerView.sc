@@ -734,7 +734,7 @@ ScopeWidget : ServerWidgetBase {
 			(LevelIndicator()
 				.fixedWidth_(8 - (inChannels + outChannels).linlin(4, 16, 0, 6).round(1))
 				.minWidth_(2)
-				//.stepWidth_(1)
+				.stepWidth_(1)
 				.style_(1)
 				.drawsPeak_(true)
 			)
