@@ -36,10 +36,17 @@ ServerView : Singleton {
 			|v, char|
 			actions[char.asSymbol].value(this);
 		});
-		view.layout_(HLayout(
-			WindowHandleView().maxWidth_(10).minWidth_(10),
-			widgetLayout = VLayout()
-		).spacing_(0).margins_(2));
+		if (border.not) {
+			view.layout_(HLayout(
+				WindowHandleView().maxWidth_(10).minWidth_(10),
+				widgetLayout = VLayout()
+			).spacing_(0).margins_(2));
+		}{
+			view.layout_(HLayout(
+				widgetLayout = VLayout()
+			).spacing_(0).margins_(2));
+		};
+
 		widgetLayout.margins = 3;
 		widgetLayout.spacing = 1;
 		view.onClose_(this.onClose(_));
