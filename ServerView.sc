@@ -939,7 +939,8 @@ HistoryWidget : ServerWidgetBase {
 
 +Server {
 	makeGui {
-		ServerView(this).front;
+		var sv = ServerView();
+		sv.front;
 	}
 }
 
