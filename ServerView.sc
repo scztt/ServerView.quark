@@ -4,7 +4,7 @@ ServerView : Singleton {
 
 	*initClass {
 		panelTypes = IdentityDictionary();
-		widgets = List[ServerStatusWidget, VolumeWidget, ScopeWidget];
+		widgets = List[ServerStatusWidget, ScopeWidget, HistoryWidget, VolumeWidget, RecordWidget];
 		actions = IdentityDictionary();
 	}
 
