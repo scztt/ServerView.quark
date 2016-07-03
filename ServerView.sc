@@ -315,13 +315,11 @@ ServerSelectorWidget : ServerWidgetBase {
 
 		^view;
 	}
+
 	bootAction {
-		|b|
-		(server.serverRunning).if({
-			server.quit;
-		}, {
+		if (server.serverRunning.not) {
 			server.boot;
-		})
+		}
 	}
 
 	defaultAction {
