@@ -1,11 +1,22 @@
 ServerView : Singleton {
-	classvar panelTypes, <>widgets, <actions, <>border=true;
+	classvar panelTypes, <>widgets, <actions, <>border=true,
+	showOnBoot=true, serverViewShown=false;
 	var <>view, <window, widgetLayout, <server, <>widgets, containers;
 
 	*initClass {
 		panelTypes = IdentityDictionary();
 		widgets = List[ServerStatusWidget, ScopeWidget, HistoryWidget, VolumeWidget, RecordWidget];
 		actions = IdentityDictionary();
+
+		ServerBoot.add(this);
+	}
+
+	*doOnServerBoot {
+		|server|
+		if (showOnBoot && serverViewShown.not) {
+			serverViewShown = true;
+			server.makeGui;
+		}
 	}
 
 	*default {
