@@ -212,7 +212,17 @@ ServerSelectorWidget : ServerWidgetBase {
 				{ if(server.serverRunning) { TreeSnapshotView(server).autoUpdate().front() } }),
 
 			ServerViewAction("Scope", 's',
-				{ server.scope(server.options.numOutputBusChannels) }),
+				{
+					var scopeWin = server.scope(server.options.numOutputBusChannels);
+					scopeWin.scopeView.waveColors = 10.collect {
+						| i |
+						var h, s, v, a;
+						#h, s, v, a = brightBlue.asHSV();
+						h = (h + (i * 0.68)).mod(1).min(1).max(0);
+						Color.hsv(h, s, v, a);
+					};
+				}
+			),
 
 			ServerViewAction("Frequency scope", 'f',
 				{ server.freqscope }),
