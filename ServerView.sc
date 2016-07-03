@@ -190,7 +190,7 @@ ServerViewAction {
 }
 
 ServerSelectorWidget : ServerWidgetBase {
-	var serverList, view, list, runningText, killButton, bootButton, defaultButton, optionsMenu, optionsView, controller;
+	var serverList, view, list, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView;
 
 	actions {
 		var actions = [
