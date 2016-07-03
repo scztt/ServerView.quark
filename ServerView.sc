@@ -757,6 +757,7 @@ ScopeWidget : ServerWidgetBase {
 		};
 
 		scopeView.mouseWheelAction_({ |...args| this.mouseWheelAction(*args) });
+		scopeView.mouseUpAction_({ scopeView.style = (scopeView.style + 1) % 3 })
 
 		^view;
 	}
