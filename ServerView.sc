@@ -193,10 +193,7 @@ ServerSelectorWidget : ServerWidgetBase {
 	var serverList, view, list, runningText, killButton, bootButton, defaultButton, optionsMenu, optionsView, controller;
 
 	actions {
-		^[
-			ServerViewAction("Boot", ' ',
-				{ if(server.serverRunning.not) { server.boot } }),
-
+		var actions = [
 			ServerViewAction("Options", 'o', {
 				if (optionsView.isNil) {
 					optionsView = ServerOptionsGui(server);
@@ -228,10 +225,25 @@ ServerSelectorWidget : ServerWidgetBase {
 
 			ServerViewAction("Reset volume", '0',
 				{ server.volume = 0 }),
-
-			ServerViewAction("Close", 27.asAscii.asSymbol,
-				{ parent.window.rememberPosition(\ServerView); parent.close() }),
 		];
+
+		actions = [
+			ServerViewAction("Boot", ' ',
+				{ if(server.serverRunning.not) { server.boot } }),
+
+			ServerViewAction("Quit", ' ',
+				{ if(server.serverRunning) { server.quit } }),
+		] ++ actions;
+
+		actions = actions ++ [
+			ServerViewAction("Kill all servers", ' ',
+				{ Server.killAll }),
+			ServerViewAction("Close Server View", 27.asAscii.asSymbol,
+				{ parent.window.rememberPosition(\ServerView); parent.close() }),
+
+		];
+
+		^actions
 	}
 
 	view {
@@ -265,13 +277,6 @@ ServerSelectorWidget : ServerWidgetBase {
 				),
 				//runningText = StaticText().font_(this.font(16, true)).align_(\center),
 				nil,
-				killButton = (Button()
-					.states_([["K"]])
-					.action_(this.killAction(_))
-					.maxHeight_(18).maxWidth_(22)
-					.canFocus_(false)
-					.font_(this.font(12, true))
-				),
 				defaultButton = (Button()
 					.action_(this.defaultAction(_))
 					.maxHeight_(18).maxWidth_(22)
@@ -286,7 +291,7 @@ ServerSelectorWidget : ServerWidgetBase {
 		this.onDefault;
 
 		optionsMenu.allowsReselection = true;
-		optionsMenu.items = this.actions.collectAs(_.name, Array);
+		optionsMenu.items = [""] ++ this.actions.collectAs(_.name, Array);
 		optionsMenu.action_({
 			|v|
 			var name = v.items[v.value];
