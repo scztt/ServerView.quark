@@ -864,6 +864,78 @@ ScopeWidget : ServerWidgetBase {
 	}
 }
 
+HistoryWidget : ServerWidgetBase {
+	var historyResponder, historySynth, counter;
+	var cmdName = '/HistoryWidget';
+
+	doOnServerTree {
+		|bootingServer|
+		if (bootingServer == server) {
+			this.start();
+		}
+	}
+
+	doOnServerQuit {
+		|bootingServer|
+		if (bootingServer == server) {
+			this.stop;
+		}
+	}
+
+	start {
+		var channels = server.options.numOutputBusChannels ?? 2;
+
+		historySynth = {
+			SendPeakRMS.kr(InFeedback.ar(0, channels), 2, 1, cmdName:cmdName);
+		}.play(RootNode(server), nil, \addToTail);
+
+		historyResponder = OSCFunc({
+			|msg|
+			var peak, rms;
+			msg = msg[3..].clump(2).flop;
+
+			peak = msg[0];
+			rms = msg[1];
+
+			{ counter.value = peak.maxItem.ampdb.linlin(-60, 0, 0, 1) }.defer;
+		}, cmdName);
+
+		historySynth.onFree({
+			|freed|
+			if (freed == historySynth) {
+				historySynth = nil;
+			}
+		})
+	}
+
+	stop {
+		historySynth !? { historySynth.free };
+		historySynth = nil;
+
+		historyResponder !? { historyResponder.free };
+		historyResponder = nil;
+	}
+
+	view {
+		var view;
+
+		counter = GraphCounter("PEAK DB", nil, this.font(8), brightGreen, 0.0, 1.0, historySize:160);
+		view = counter.view;
+		view.minHeight_(40);
+
+		if (server.serverBooting.not && server.serverRunning) {
+			this.start();
+		};
+
+		ServerTree.add(this);
+		ServerQuit.add(this);
+
+		view.onClose = { this.stop() };
+
+		^view
+	}
+}
+
 +Server {
 	makeGui {
 		ServerView(this).front;
