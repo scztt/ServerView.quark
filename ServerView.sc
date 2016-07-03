@@ -834,7 +834,7 @@ ScopeWidget : ServerWidgetBase {
 				| i |
 				var h, s, v, a;
 				#h, s, v, a = brightBlue.asHSV();
-				h = (h + (i * 0.65)).min(1).max(0);
+				h = (h + (i * 0.68)).mod(1).min(1).max(0);
 				Color.hsv(h, s, v, a);
 			};
 
