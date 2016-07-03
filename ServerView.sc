@@ -610,6 +610,108 @@ VolumeWidget : ServerWidgetBase {
 	}
 }
 
+RecordWidget : ServerWidgetBase {
+	var view, pathString, <>recPath, timeString, timeRoutine;
+
+	isRecording {
+		if (server.recordNode.notNil) { "recording".postln } { "stopped".postln };
+		^server.recordNode.notNil
+	}
+
+	drawRecording {
+		| size |
+		Pen.stringCenteredIn("▨", Rect(0,1,size,size),
+			font: Font(size:16),
+			color: Color.hsv(170/360, 0.8, 0.9)
+		);
+	}
+
+	drawStopped {
+		| size |
+		Pen.stringCenteredIn("●", Rect(0,1,size,size),
+			font: Font(size:18),
+			color: Color.hsv(0, 0.8, 0.9)
+		);
+	}
+
+	buttonClicked {
+		if (this.isRecording) {
+			server.stopRecording();
+			timeRoutine.stop();
+			timeString.string = "";
+		} {
+			server.record("~/Desktop/test.aiff".standardizePath);
+
+			Routine({
+				var i = 0;
+				while { i < 100 && this.isRecording.not } {
+					i = i - 1;
+					0.1.wait;
+				};
+
+				view.parent.refresh;
+			}).play(AppClock);
+
+			timeRoutine = Routine({
+				var startTime = thisThread.seconds;
+				inf.do {
+					timeString.string = (thisThread.seconds - startTime).asTimeString(maxDays:0)[3..];
+					0.1.wait;
+				}
+			}).play(AppClock)
+		};
+
+		view.refresh;
+	}
+
+	view {
+		var recButton, pathString, label, path, openButton, showButton;
+
+		label = StaticText().string_("REC:").font_(this.font(9));
+
+		pathString = (TextField()
+			.font_(this.font(8))
+			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
+			.background_(Color.grey(0.5, 0.8))
+			.fixedHeight_(20)
+		);
+		pathString.string = " ..." +/+ PathName(thisProcess.platform.recordingsDir).folderName +/+ PathName(thisProcess.platform.recordingsDir).fileName;
+		pathString.mouseUpAction = {
+			if (thisProcess.platformClass == OSXPlatform) {
+				"open '%'".format(thisProcess.platform.recordingsDir).unixCmdGetStdOut();
+			}
+		};
+
+		timeString = (TextField()
+			.font_(this.font(11, true))
+			.align_(\right)
+			.stringColor_(QtGUI.palette.windowText)
+			.background_(Color.clear)
+			.fixedWidth_(75)
+			.fixedHeight_(20)
+		);
+
+		recButton = UserView().fixedHeight_(22).fixedWidth_(22);
+		recButton.drawFunc = {
+			|v|
+			if (this.isRecording) {
+				this.drawRecording(20)
+			} {
+				this.drawStopped(20)
+			}
+		};
+
+		recButton.mouseUpAction = this.buttonClicked(_);
+
+		view = View().layout_(HLayout(
+			label, pathString,
+			5, timeString, recButton
+		).margins_(0).spacing_(9));
+
+		^view
+	}
+}
+
 ScopeWidget : ServerWidgetBase {
 	var view, <scopeView, <meters, <synth, levelSynth, levelsName, outresp, bus, rate=\audio, inChannels=2, outChannels=2, index=0,
 	updateFreq=18, cycle=2048, dBLow = -80, numRMSSamps;
