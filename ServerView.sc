@@ -459,13 +459,13 @@ NumberCounter {
 }
 
 GraphCounter {
-	var name, units, font, color, <>min, <>max, maxColor, <>minFixed=false, <>maxFixed=false, historySize,
+	var name, units, font, color, <>min, <>max, maxColor, <>minFixed=false, <>maxFixed=false, historySize, reverse,
 	<view, heading, number, history, <>span=1, <>round=0.1
 	;
 
 	*new {
-		|name, units, font, color, min, max, maxColor, historySize=20|
-		^super.newCopyArgs(name, units, font, color, min, max, maxColor, min.notNil, max.notNil, historySize)
+		|name, units, font, color, min, max, maxColor, historySize=20, reverse=false|
+		^super.newCopyArgs(name, units, font, color, min, max, maxColor, min.notNil, max.notNil, historySize, reverse)
 		.init;
 	}
 
@@ -483,6 +483,7 @@ GraphCounter {
 				.font_(font.boldVariant.size_(font.size + 2))
 				.stringColor_(Color.grey(0.7 + mod))
 				.align_(\center)
+				.visible_(units.notNil)
 			)
 		).margins_(0).spacing_(0))
 		.drawFunc_({
@@ -492,9 +493,16 @@ GraphCounter {
 			Pen.push();
 
 			Pen.width = 0;
-			Pen.scale(b.width, b.height.neg);
-			Pen.translate(0, -1);
-			Pen.moveTo(0@0);
+			if (reverse) {
+				Pen.scale(b.width, b.height.neg);
+				Pen.translate(0, -1);
+				Pen.moveTo(0@0);
+			} {
+				Pen.scale(b.width.neg, b.height.neg);
+				Pen.translate(-1, -1);
+				Pen.moveTo(0@0);
+			};
+
 			history.do {
 				|val, i|
 				Pen.lineTo(
