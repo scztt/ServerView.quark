@@ -614,15 +614,14 @@ RecordWidget : ServerWidgetBase {
 	var view, pathString, <>recPath, timeString, timeRoutine;
 
 	isRecording {
-		if (server.recordNode.notNil) { "recording".postln } { "stopped".postln };
 		^server.recordNode.notNil
 	}
 
 	drawRecording {
 		| size |
 		Pen.stringCenteredIn("▨", Rect(0,1,size,size),
-			font: Font(size:16),
-			color: Color.hsv(170/360, 0.8, 0.9)
+			font: Font(size:14),
+			color: QtGUI.palette.windowText
 		);
 	}
 
