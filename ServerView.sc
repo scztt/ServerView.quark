@@ -679,7 +679,7 @@ RecordWidget : ServerWidgetBase {
 
 		label = StaticText().string_("REC:").font_(this.font(9));
 
-		pathString = (TextField()
+		pathString = (DragSink()
 			.font_(this.font(8))
 			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
 			.background_(Color.grey(0.5, 0.8))
@@ -690,6 +690,11 @@ RecordWidget : ServerWidgetBase {
 			if (thisProcess.platformClass == OSXPlatform) {
 				"open '%'".format(thisProcess.platform.recordingsDir).unixCmdGetStdOut();
 			}
+		};
+		pathString.canReceiveDragHandler = { View.currentDrag.asString.pathExists == \folder };
+		pathString.receiveDragHandler = {
+			thisProcess.platform.recordingsDir = View.currentDrag.asString;
+			pathString.string = " ..." +/+ PathName(thisProcess.platform.recordingsDir).folderName +/+ PathName(thisProcess.platform.recordingsDir).fileName;
 		};
 
 		timeString = (TextField()
