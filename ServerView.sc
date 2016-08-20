@@ -772,7 +772,11 @@ ScopeWidget : ServerWidgetBase {
 		};
 
 		scopeView.mouseWheelAction_({ |...args| this.mouseWheelAction(*args) });
-		scopeView.mouseUpAction_({ scopeView.style = (scopeView.style + 1) % 3 })
+		scopeView.mouseUpAction_({ scopeView.style = (scopeView.style + 1) % 3 });
+
+		view.onClose = {
+			this.stopSynth();
+		};
 
 		^view;
 	}
@@ -800,7 +804,7 @@ ScopeWidget : ServerWidgetBase {
 
 		numRMSSamps = server.sampleRate / updateFreq;
 
-		SynthDef(levelsName, {
+		levelSynth = SynthDef(levelsName, {
 			var sig, imp;
 			sig = [
 				SoundIn.ar((0..inChannels-1)),
@@ -862,8 +866,8 @@ ScopeWidget : ServerWidgetBase {
 
 	stopSynth {
 		scopeView.stop();
-		synth.free; bus.free;
-		synth = nil; bus = nil;
+		synth.free; bus.free; levelSynth.free;
+		levelSynth = synth = bus = nil;
 	}
 
 	doOnServerTree {
@@ -901,9 +905,9 @@ HistoryWidget : ServerWidgetBase {
 	start {
 		var channels = server.options.numOutputBusChannels ?? 2;
 
-		historySynth = {
+		historySynth = SynthDef("ampHistory_%".format(channels).asSymbol, {
 			SendPeakRMS.kr(InFeedback.ar(0, channels), 2, 1, cmdName:cmdName);
-		}.play(RootNode(server), nil, \addToTail);
+		}).play(RootNode(server), addAction:\addToTail);
 
 		historyResponder = OSCFunc({
 			|msg|
