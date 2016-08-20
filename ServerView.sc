@@ -650,7 +650,7 @@ RecordWidget : ServerWidgetBase {
 			timeRoutine.stop();
 			timeString.string = "";
 		} {
-			server.record("~/Desktop/test.aiff".standardizePath);
+			server.record();
 
 			Routine({
 				var i = 0;
