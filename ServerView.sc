@@ -626,8 +626,6 @@ RecordWidget : ServerWidgetBase {
 	var view, pathString, <>recPath, timeString, timeRoutine, busInput;
 
 	*initClass {
-		recIcon = Material("fiber_manual_record", 20, Color.green(0.8));
-		stopIcon = Material("stop", 20, Color.grey(0.8));
 	}
 
 	isRecording {
