@@ -622,10 +622,16 @@ VolumeWidget : ServerWidgetBase {
 }
 
 RecordWidget : ServerWidgetBase {
-	var view, pathString, <>recPath, timeString, timeRoutine;
+	classvar recIcon, stopIcon;
+	var view, pathString, <>recPath, timeString, timeRoutine, busInput;
+
+	*initClass {
+		recIcon = Material("fiber_manual_record", 20, Color.green(0.8));
+		stopIcon = Material("stop", 20, Color.grey(0.8));
+	}
 
 	isRecording {
-		^server.recordNode.notNil
+		^server.recorder.isRecording
 	}
 
 	drawRecording {
@@ -650,7 +656,7 @@ RecordWidget : ServerWidgetBase {
 			timeRoutine.stop();
 			timeString.string = "";
 		} {
-			server.record();
+			server.record(bus:busInput.value.asInteger);
 
 			Routine({
 				var i = 0;
@@ -697,6 +703,16 @@ RecordWidget : ServerWidgetBase {
 			pathString.string = " ..." +/+ PathName(thisProcess.platform.recordingsDir).folderName +/+ PathName(thisProcess.platform.recordingsDir).fileName;
 		};
 
+		busInput = (NumberBox()
+			.font_(this.font(8))
+			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
+			.background_(Color.grey(0.5, 0.8))
+			.align_(\right)
+			.fixedWidth_(24)
+			.fixedHeight_(20)
+		);
+		busInput.value = 0;
+
 		timeString = (TextField()
 			.font_(this.font(11, true))
 			.align_(\right)
@@ -706,21 +722,16 @@ RecordWidget : ServerWidgetBase {
 			.fixedHeight_(20)
 		);
 
-		recButton = UserView().fixedHeight_(22).fixedWidth_(22);
-		recButton.drawFunc = {
-			|v|
-			if (this.isRecording) {
-				this.drawRecording(20)
-			} {
-				this.drawStopped(20)
-			}
-		};
+		recButton = Button()
+						.states_([[nil, Color.clear, Color.clear]])
+						.fixedSize_(20@20)
+						.canFocus_(false);
 
 		recButton.mouseUpAction = this.buttonClicked(_);
 
 		view = View().layout_(HLayout(
 			label, pathString,
-			5, timeString, recButton
+			5, timeString, busInput, recButton
 		).margins_(0).spacing_(9));
 
 		^view
@@ -729,7 +740,7 @@ RecordWidget : ServerWidgetBase {
 
 ScopeWidget : ServerWidgetBase {
 	var view, <scopeView, <meters, <synth, levelSynth, levelsName, outresp, bus, rate=\audio, inChannels=2, outChannels=2, index=0,
-	updateFreq=18, cycle=2048, dBLow = -80, numRMSSamps;
+	updateFreq=20, cycle=2048, <>dBLow = -60, numRMSSamps, style=0, <outBus;
 
 	*new {
 		|...args|
