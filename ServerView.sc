@@ -733,7 +733,7 @@ VolumeWidget : ServerWidgetBase {
 					),
 					muteButton = (Button()
 						.action_({ |v| (v.value == 1).if({ server.mute }, {server.unmute}) })
-						.font_(this.font().boldVariant)
+						.font_(this.font())
 						.maxHeight_(height - 2).maxWidth_(22)
 						.canFocus_(false)
 						.states_([
