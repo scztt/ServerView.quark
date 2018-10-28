@@ -752,64 +752,75 @@ VolumeWidget : ServerWidgetBase {
 }
 
 RecordWidget : ServerWidgetBase {
-	classvar recIcon, stopIcon;
-	var view, pathString, <>recPath, timeString, timeRoutine, busInput;
+	classvar <recIcon, <stopIcon;
+	var view, pathString, <recPath, timeString, timeRoutine, busInput, channelsInput, channelsInputText;
 
 	*initClass {
+		recIcon = Image(16).draw({ this.drawRec(14) });
+		stopIcon = Image(16).draw({ this.drawStop(16) });
 	}
 
 	isRecording {
 		^server.recorder.isRecording
 	}
 
-	drawRecording {
+	*drawStop {
 		| size |
 		Pen.stringCenteredIn("▨", Rect(0,1,size,size),
 			font: Font(size:14),
-			color: QtGUI.palette.windowText
+			color: QtGUI.palette.buttonText
 		);
 	}
 
-	drawStopped {
+	*drawRec {
 		| size |
 		Pen.stringCenteredIn("●", Rect(0,1,size,size),
-			font: Font(size:18),
+			font: Font(size:14),
 			color: Color.hsv(0, 0.8, 0.9)
 		);
 	}
 
 	buttonClicked {
+		|button|
+		var bus, channels;
+
+		bus = busInput.value.asInteger;
+		channels = channelsInput.value.asInteger;
+
 		if (this.isRecording) {
 			server.stopRecording();
-			timeRoutine.stop();
-			timeString.string = "";
 		} {
-			server.record(bus:busInput.value.asInteger);
-
-			Routine({
-				var i = 0;
-				while { i < 100 && this.isRecording.not } {
-					i = i - 1;
-					0.1.wait;
-				};
-
-				view.parent.refresh;
-			}).play(AppClock);
-
-			timeRoutine = Routine({
-				var startTime = thisThread.seconds;
-				inf.do {
-					timeString.string = (thisThread.seconds - startTime).asTimeString(maxDays:0)[3..];
-					0.1.wait;
-				}
-			}).play(AppClock)
+			server.record(path: this.resolvedRecPath(), bus:bus, numChannels:channels);
 		};
 
 		view.refresh;
 	}
 
+	resolvedRecFolder {
+		var actualPath = recPath ?? { thisProcess.platform.recordingsDir };
+		^actualPath;
+	}
+
+	resolvedRecPath {
+		var timestamp;
+		var dir = this.resolvedRecFolder();
+		timestamp = Date.localtime.stamp;
+		^dir +/+ server.recorder.filePrefix ++ timestamp ++ "." ++ server.recHeaderFormat;
+	}
+
+	recPath_{
+		|path|
+		recPath = path;
+		this.updateRecPathString();
+	}
+
+	updateRecPathString {
+		var path = PathName(this.resolvedRecFolder());
+		pathString.string = " ..." +/+ path.folderName +/+ path.fileName;
+	}
+
 	view {
-		var recButton, pathString, label, path, openButton, showButton;
+		var recButton, label, path, openButton, showButton;
 
 		label = StaticText().string_("REC:").font_(this.font(9));
 
@@ -819,27 +830,43 @@ RecordWidget : ServerWidgetBase {
 			.background_(Color.grey(0.5, 0.8))
 			.fixedHeight_(20)
 		);
-		pathString.string = " ..." +/+ PathName(thisProcess.platform.recordingsDir).folderName +/+ PathName(thisProcess.platform.recordingsDir).fileName;
 		pathString.mouseUpAction = {
 			if (thisProcess.platformClass == OSXPlatform) {
-				"open '%'".format(thisProcess.platform.recordingsDir).unixCmdGetStdOut();
+				"open '%'".format(this.resolvedRecFolder()).unixCmdGetStdOut();
 			}
 		};
 		pathString.canReceiveDragHandler = { View.currentDrag.asString.pathExists == \folder };
 		pathString.receiveDragHandler = {
-			thisProcess.platform.recordingsDir = View.currentDrag.asString;
-			pathString.string = " ..." +/+ PathName(thisProcess.platform.recordingsDir).folderName +/+ PathName(thisProcess.platform.recordingsDir).fileName;
+			this.recPath = View.currentDrag.asString;
 		};
+		this.updateRecPathString();
 
 		busInput = (NumberBox()
 			.font_(this.font(8))
 			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
 			.background_(Color.grey(0.5, 0.8))
 			.align_(\right)
-			.fixedWidth_(24)
+			.fixedWidth_(20)
 			.fixedHeight_(20)
 		);
 		busInput.value = 0;
+
+		channelsInputText = StaticText()
+			.string_("⁝")
+			.font_(this.font(12))
+			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
+			.align_(\center)
+			.fixedWidth_(6)
+			.fixedHeight_(20);
+		channelsInput = (NumberBox()
+			.font_(this.font(8))
+			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
+			.background_(Color.grey(0.5, 0.8))
+			.align_(\right)
+			.fixedWidth_(20)
+			.fixedHeight_(20)
+		);
+		channelsInput.value = server.options.numOutputBusChannels;
 
 		timeString = (TextField()
 			.font_(this.font(11, true))
@@ -854,68 +881,252 @@ RecordWidget : ServerWidgetBase {
 						.states_([[nil, Color.clear, Color.clear]])
 						.fixedSize_(20@20)
 						.canFocus_(false);
+		recButton.icon = recIcon;
 
 		recButton.mouseUpAction = this.buttonClicked(_);
 
 		view = View().layout_(HLayout(
 			label, pathString,
-			5, timeString, busInput, recButton
+			5, timeString, HLayout(busInput, channelsInputText, channelsInput).spacing_(0).margins_(0), recButton
 		).margins_(0).spacing_(9));
+
+		server.signal(\recording).connectTo({
+			|server, what, state|
+			if (state) {
+				recButton.icon = stopIcon;
+			} {
+				recButton.icon = recIcon;
+			}
+		}).defer.freeAfter(view);
+
+		server.signal(\recordingDuration).connectTo({
+			|server, what, dur|
+			timeString.string = (dur).asTimeString(maxDays:0)[3..][0..4];
+		}).defer.freeAfter(view);
+
+		view.toFrontAction = view.toFrontAction.addFunc({
+			this.updateRecPathString();
+		});
 
 		^view
 	}
 }
 
 ScopeWidget : ServerWidgetBase {
-	var view, <scopeView, <meters, <synth, levelSynth, levelsName, outresp, bus, rate=\audio, inChannels=2, outChannels=2, index=0,
-	updateFreq=20, cycle=2048, <>dBLow = -60, numRMSSamps, style=0, <outBus;
+	var view, <scopeView,
+	inMetersView, <inMeters, inMetersMenu, inChannels, inChannelsActions,
+	outMetersView, <outMeters, outMetersMenu, outChannels, outChannelsActions,
+	scopeMenu, scopeChannels, scopeStyle, scopeMenu,
+	meters, meterActions, prefConnections,
+	<synth, levelSynth, levelsName, outresp, bus, rate=\audio, index=0,
+	updateFreq=20, cycle=2048, dbList, dBLow, numRMSSamps, style=0, <outBus;
 
 	*new {
 		|...args|
 		var me;
 		me = super.new(*args);
-		^me
+		^me.init
 	}
 
-	view {
-		var subviews;
-		levelsName = (server.name ++ "OutputWidgetLevels");
+	init {
+		super.init();
+	}
 
-		inChannels = server.options.numInputBusChannels;
-		outChannels = server.options.numOutputBusChannels;
+	initPrefs {
+		scopeChannels 	= Preference(\ScopeWidget, \scopeChannels, server.options.outDevice.asSymbol)
+							.default_({ server.options.numOutputBusChannels })
+							.spec_(ControlSpec(1, 32, step:1));
+		scopeStyle	 	= Preference(\ScopeWidget, \scopeStyle)
+							.default_({ 0 })
+							.spec_(ControlSpec(0, 2, step:1));
+		inChannels 		= Preference(\ScopeWidget, \inChannels, server.options.inDevice.asSymbol)
+							.default_({ server.options.numInputBusChannels })
+							.spec_(ControlSpec(1, 32, step:1));
+		outChannels 	= Preference(\ScopeWidget, \outChannels, server.options.outDevice.asSymbol)
+							.default_({ server.options.numOutputBusChannels })
+							.spec_(ControlSpec(1, 32, step:1));
+		dBLow 			= Preference(\ScopeWidget, \dBLow, server.options.outDevice.asSymbol)
+							.default_(-60)
+							.spec_(ControlSpec(-120, 120));
 
-		meters = (inChannels + outChannels).collect {
+		prefConnections.free;
+
+		prefConnections = ConnectionList [
+			scopeChannels.signal(\value).connectTo(
+				this.methodSlot("restartSynth()"),
+				this.methodSlot("updateMenus()")
+			),
+			scopeStyle.signal(\value).connectTo(
+				scopeView.methodSlot("style_(value)"),
+				this.methodSlot("updateMenus()")
+			),
+			inChannels.signal(\value).connectTo(
+				this.methodSlot("populateInMeters()"),
+				this.methodSlot("restartSynth()"),
+				this.methodSlot("updateMenus()")
+			),
+			outChannels.signal(\value).connectTo(
+				this.methodSlot("populateOutMeters()"),
+				this.methodSlot("restartSynth()"),
+				this.methodSlot("updateMenus()")
+			),
+			dBLow.signal(\value).connectTo(
+				{
+					meters.do {
+						|m|
+						m.warning = -12.linlin(this.dBLow, 0, 0, 1);
+						m.critical = -3.linlin(this.dBLow, 0, 0, 1);
+					}
+				},
+				this.methodSlot("updateMenus()")
+			)
+		];
+	}
+
+	updateMenus {
+		meterActions = [-40, -60, -80].collect {
+			|db|
+			MenuAction(db.asString, {
+				|a|
+				this.dBLow = db;
+			}).checkable_(true).checked_(this.dBLow == db)
+		};
+
+		// input meters
+		inMetersView.setContextMenuActions(*[
+			meterActions,
+			MenuAction.separator("Channels"),
+			server.options.numInputBusChannels.collect({
+				|i|
+				i = i + 1;
+				MenuAction(i.asString, {
+					this.inChannels = i;
+				}).checkable_(true).checked_(this.inChannels == i)
+			})
+		].flatten);
+
+		// output meters
+		outMetersView.setContextMenuActions(*[
+			meterActions,
+			MenuAction.separator("Channels"),
+			server.options.numOutputBusChannels.collect({
+				|i|
+				i = i + 1;
+				MenuAction(i.asString, {
+					this.outChannels = i
+				}).checkable_(true).checked_(this.outChannels == i)
+			})
+		].flatten);
+
+		// scope
+		scopeView.setContextMenuActions(*[
+			MenuAction("Separate", 	{ this.scopeStyle = 0 }).checkable_(true).checked_(this.scopeStyle == 0),
+			MenuAction("Layered", 	{ this.scopeStyle = 1 }).checkable_(true).checked_(this.scopeStyle == 1),
+			MenuAction("XY", 		{ this.scopeStyle = 2 }).checkable_(true).checked_(this.scopeStyle == 2),
+
+			MenuAction.separator("Channels"),
+
+			server.options.numOutputBusChannels.collect({
+				|i|
+				i = i + 1;
+				MenuAction(i.asString, {
+					this.scopeChannels = i;
+				}).checkable_(true).checked_(this.scopeChannels == i)
+			})
+		].flatten);
+	}
+
+	scopeChannels { ^min(server.options.numOutputBusChannels, scopeChannels.value.asInteger) }
+	scopeChannels_{
+		|v|
+		scopeChannels.value = v;
+	}
+
+	scopeStyle { ^scopeStyle.value.asInteger }
+	scopeStyle_{
+		|v|
+		scopeStyle.value = v;
+	}
+
+	inChannels { ^min(server.options.numInputBusChannels, inChannels.value.asInteger) }
+	inChannels_{
+		|v|
+		inChannels.value = v;
+	}
+
+	outChannels { ^min(server.options.numOutputBusChannels, outChannels.value.asInteger) }
+	outChannels_{
+		|v|
+		outChannels.value = v;
+	}
+
+	dBLow { ^dBLow.value.asInteger }
+	dBLow_{
+		|v|
+		dBLow.value = v;
+	}
+
+	populateMeters {
+		|parent, channels|
+		var newMeters;
+
+		parent.removeAll();
+		newMeters = channels.collect {
 			(LevelIndicator()
-				.fixedWidth_(8 - (inChannels + outChannels).linlin(4, 16, 0, 6).round(1))
+				.fixedWidth_(6 - (channels).linlin(2, 8, 0, 3).round(1))
 				.minWidth_(2)
 				.stepWidth_(1)
 				.style_(1)
 				.drawsPeak_(true)
 			)
 		};
-		subviews = (meters[0..(inChannels-1)]
-			++ [[scopeView = ScopeView(), stretch:2]]
-			++ meters[inChannels..]);
+
+		newMeters.do(parent.layout.add(_));
+		^newMeters;
+	}
+
+	populateInMeters {
+		inMeters = this.populateMeters(inMetersView, this.inChannels);
+		meters = inMeters ++ outMeters;
+	}
+
+	populateOutMeters {
+		outMeters = this.populateMeters(outMetersView, this.outChannels);
+		meters = inMeters ++ outMeters;
+	}
+
+	view {
+		var subviews,
+			inMenuContext, outMenuContext, scopeContext;
+
+		levelsName = (server.name ++ "OutputWidgetLevels");
 
 		view = View().layout_(HLayout(
-			*subviews
+			inMetersView = View().layout_(HLayout().margins_(0).spacing_(0)),
+			[scopeView = ScopeView(), stretch:2],
+			outMetersView = View().layout_(HLayout().margins_(0).spacing_(0))
 		).margins_(0).spacing_(1));
+
+		this.initPrefs();
 
 		scopeView.server = server;
 		scopeView.canFocus = true;
 		scopeView.background = QtGUI.palette.window;
+
 		ServerTree.add(this, server);
 		ServerQuit.add(this, server);
+
 		if (server.serverRunning) {
-			this.startSynth();
+			this.doOnServerTree();
 		};
 
 		scopeView.mouseWheelAction_({ |...args| this.mouseWheelAction(*args) });
-		scopeView.mouseUpAction_({ scopeView.style = (scopeView.style + 1) % 3 });
 
-		view.onClose = {
+		view.signal(\closed).connectTo({
 			this.stopSynth();
-		};
+			ServerTree.remove(this, server);
+			ServerQuit.remove(this, server);
+		}).oneShot;
 
 		^view;
 	}
@@ -934,6 +1145,8 @@ ScopeWidget : ServerWidgetBase {
 	}
 
 	playLevelSynth {
+		outBus = Bus.control(server, (this.inChannels + this.outChannels) * 2);
+		"Allocated levels outbus: %".format(outBus).postln;
 		if (levelSynth.notNil) {
 			levelSynth.free;
 		};
@@ -944,21 +1157,23 @@ ScopeWidget : ServerWidgetBase {
 		numRMSSamps = server.sampleRate / updateFreq;
 
 		levelSynth = SynthDef(levelsName, {
-			var sig, imp;
+			|out|
+			var sig, imp, peak, max, output;
 			sig = [
-				SoundIn.ar((0..inChannels-1)),
-				In.ar(0, outChannels)
+				SoundIn.ar((0..this.inChannels-1)),
+				In.ar(0, this.outChannels)
 			].flatten;
 
 			imp = Impulse.ar(updateFreq);
-			SendReply.ar(imp, "/" ++ levelsName,
-				// do the mean and sqrt clientside to save CPU
-				[
-					RunningSum.ar(sig.squared, numRMSSamps),
-					Peak.ar(sig, Delay1.ar(imp)).lag(0, 3)
-				].flop.flat
-			);
-		}).play(RootNode(server), nil, \addToTail);
+
+			max = RunningMax.ar(sig.abs, Delay1.ar(imp));
+			peak = Peak.ar(sig, Delay1.ar(imp)).lag(0, 3);
+
+			output = [max, peak].flop.flat;
+
+			Out.kr(out, output);
+			SendReply.ar(imp, "/" ++ levelsName, output);
+		}).play(RootNode(server), [\out, outBus], \addToTail);
 
 		outresp = OSCdef(\widgetLevels, {
 			|msg, t|
@@ -968,8 +1183,11 @@ ScopeWidget : ServerWidgetBase {
 					|val, peak, i|
 					var meter;
 					meter = meters[i * 0.5];
-					meter.value = (val.max(0.0) * numRMSSamps.reciprocal).sqrt.ampdb.linlin(dBLow, 0, 0, 1);
-					meter.peakLevel = peak.ampdb.linlin(dBLow, 0, 0, 1);
+
+					if (meter.notNil) {
+						meter.value = val.max(0.0).ampdb.linlin(this.dBLow, 0, 0, 1);
+						meter.peakLevel = peak.ampdb.linlin(this.dBLow, 0, 0, 1);
+					}
 				})
 			}.defer;
 		}, ("/" ++ levelsName).asSymbol, server.addr).fix;
@@ -980,16 +1198,16 @@ ScopeWidget : ServerWidgetBase {
 			synth = BusScopeSynth(server);
 		};
 		if (bus.isNil) {
-			bus = Bus(rate, index, outChannels, server);
+			bus = Bus(rate, index, this.scopeChannels, server);
 		};
 		if (synth.isPlaying.not) {
 			scopeView.stop();
 
 			scopeView.server = server;
-			scopeView.bufnum = bus.index;
+			scopeView.bufnum = synth.bufferIndex;
 			scopeView.style = 1;
 			scopeView.yZoom = 0.9;
-			scopeView.waveColors = outChannels.collect {
+			scopeView.waveColors = this.scopeChannels.collect {
 				| i |
 				var h, s, v, a;
 				#h, s, v, a = brightBlue.asHSV();
@@ -1005,16 +1223,28 @@ ScopeWidget : ServerWidgetBase {
 
 	stopSynth {
 		scopeView.stop();
-		synth.free; bus.free; levelSynth.free;
-		levelSynth = synth = bus = nil;
+		synth.free; bus.free; outBus.free; levelSynth.free; outresp.free;
+		levelSynth = synth = bus = outBus = nil;
+	}
+
+	restartSynth {
+		if (server.serverRunning) {
+			this.stopSynth();
+			this.startSynth();
+		}
 	}
 
 	doOnServerTree {
-		this.startSynth;
+		this.initPrefs();
+		this.updateMenus();
+		this.populateInMeters();
+		this.populateOutMeters();
+		this.startSynth();
+		this.updateMenus();
 	}
 
 	doOnServerQuit {
-		this.stopSynth;
+		this.stopSynth();
 	}
 
 	cmdPeriod {
