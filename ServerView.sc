@@ -915,7 +915,7 @@ HistoryWidget : ServerWidgetBase {
 		var channels = server.options.numOutputBusChannels ?? 2;
 
 		historySynth = SynthDef("ampHistory_%".format(channels).asSymbol, {
-			SendPeakRMS.kr(InFeedback.ar(0, channels), 2, 1, cmdName:cmdName);
+			SendPeakRMS.kr(InFeedback.ar(0, channels), 6, 1, cmdName:cmdName);
 		}).play(RootNode(server), addAction:\addToTail);
 
 		historyResponder = OSCFunc({
@@ -926,7 +926,8 @@ HistoryWidget : ServerWidgetBase {
 			peak = msg[0];
 			rms = msg[1];
 
-			{ counter.value = peak.maxItem.ampdb.linlin(-60, 0, 0, 1) }.defer;
+			// { counter.value = peak.maxItem.ampdb.linlin(-60, 0, 0, 1) }.defer;
+			{ counter.value = peak.maxItem }.defer;
 		}, cmdName);
 
 		historySynth.onFree({
