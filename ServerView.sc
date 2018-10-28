@@ -361,7 +361,7 @@ ServerSelectorWidget : ServerWidgetBase {
 				serverName,
 				Server.default.serverRunning.if("running", "stopped")
 			);
-			color = Server.default.serverRunning.if(faintGreen, Color.grey(0.9).alpha_(0.6));
+			color = Server.default.serverRunning.if(faintGreen, QtGUI.palette.buttonText.alpha_(0.6));
 
 			button.states = [[
 				string,
@@ -392,10 +392,10 @@ ServerSelectorWidget : ServerWidgetBase {
 					.iconSize_(16);
 
 		if (\Material.asClass.notNil) {
-			button.icon_(Material("settings", 18, color:Color.white.alpha_(0.5)))
+			button.icon_(Material("settings", 18, color:QtGUI.palette.buttonText.alpha_(0.5)))
 		} {
 			button.fixedSize_(40@20);
-			button.states_([["☰", Color.white.alpha_(0.5), Color.grey.alpha_(0.2)]])
+			button.states_([["☰", QtGUI.palette.buttonText.alpha_(0.5), QtGUI.palette.button.alpha_(0.2)]])
 		};
 
 		button.menu = Menu(*this.menuActions);
@@ -834,7 +834,7 @@ RecordWidget : ServerWidgetBase {
 		pathString = (DragSink()
 			.font_(this.font(8))
 			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
-			.background_(Color.grey(0.5, 0.8))
+			.background_(QtGUI.palette.button.alpha_(0.8))
 			.fixedHeight_(20)
 		);
 		pathString.mouseUpAction = {
@@ -851,7 +851,7 @@ RecordWidget : ServerWidgetBase {
 		busInput = (NumberBox()
 			.font_(this.font(8))
 			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
-			.background_(Color.grey(0.5, 0.8))
+			.background_(QtGUI.palette.button.alpha_(0.8))
 			.align_(\right)
 			.fixedWidth_(20)
 			.fixedHeight_(20)
@@ -868,7 +868,7 @@ RecordWidget : ServerWidgetBase {
 		channelsInput = (NumberBox()
 			.font_(this.font(8))
 			.stringColor_(QtGUI.palette.windowText.alpha_(0.7))
-			.background_(Color.grey(0.5, 0.8))
+			.background_(QtGUI.palette.button.alpha_(0.8))
 			.align_(\right)
 			.fixedWidth_(20)
 			.fixedHeight_(20)
