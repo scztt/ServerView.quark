@@ -4,7 +4,7 @@
         author: "scott@artificia.org",
      copyright: "Frank Scott Carver, 2013",
        license: "MIT",
-       version: "0.2.1",
+       version: "0.2.2",
         schelp: "ServerView",
           test: "Test/ServerView_unittest.scd",
            url: "https://github.com/scztt/ServerView.quark",
@@ -13,10 +13,10 @@
               		"NodeSnapshot",
               		"WindowViewRecall",
               		"WindowHandleView",
-              		"ServerOptionsGui@0.1"
-                ] ++ ((Main.scVersionMajor <= 3) && (Main.scVersionMinor < 9)).if([
-					"UnitTesting@2a8f5e18aaa7cd25968ec094bbfa75a7fb3094b6"
-				]),
+              		"ServerOptionsGui@0.1",
+              		"Connection",
+              		"https://github.com/scztt/Preference.quark.git"
+                ],
   isCompatible: true ,
          since: "2013"
 )
