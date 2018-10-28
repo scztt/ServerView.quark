@@ -592,7 +592,8 @@ NumberCounter {
 
 GraphCounter {
 	var name, units, font, color, <>min, <>max, maxColor, <>minFixed=false, <>maxFixed=false, historySize, reverse,
-	<view, heading, number, history, <>span=1, <>round=0.1
+	<view, heading, number, history, <>span=1, <>round=0.1,
+	<>xWarp
 	;
 
 	*new {
@@ -603,6 +604,8 @@ GraphCounter {
 
 	init {
 		var mod = if (QtGUI.palette.window.asHSV[2] > 0.5) {-0.5} {0.3};
+		xWarp = ControlSpec(0, 1);
+
 		history = LinkedList.newFrom(0 ! historySize);
 		view = UserView().layout_(VLayout(
 			heading = (StaticText()
@@ -637,9 +640,10 @@ GraphCounter {
 
 			history.do {
 				|val, i|
-				Pen.lineTo(
-					(i / size) @ (val.linlin(min, max, 0, 1)).min(1).max(0)
-				);
+				var x, y;
+				x = xWarp.map(i / size.asFloat);
+				y = (val.linlin(min, max, 0, 1)).min(1).max(0);
+				Pen.lineTo(x@y);
 			};
 			Pen.lineTo(1@0);
 			Pen.lineTo(0@0);
@@ -662,6 +666,11 @@ GraphCounter {
 		if (maxFixed.not) { max = -9999999 };
 		if (minFixed.not) { min = 9999999 };
 		view.refresh();
+	}
+
+	clear {
+		history = history.collect(0);
+		this.value = 0;
 	}
 
 	value_{
