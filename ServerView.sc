@@ -389,8 +389,15 @@ ServerSelectorWidget : ServerWidgetBase {
 					.fixedSize_(32@20)
 					.states_([[nil, Color.clear, Color.grey.alpha_(0.2)]])
 					.canFocus_(false)
-					.icon_(Material("settings", 18, color:Color.white.alpha_(0.5)))
 					.iconSize_(16);
+
+		if (\Material.asClass.notNil) {
+			button.icon_(Material("settings", 18, color:Color.white.alpha_(0.5)))
+		} {
+			button.fixedSize_(40@20);
+			button.states_([["☰", Color.white.alpha_(0.5), Color.grey.alpha_(0.2)]])
+		};
+
 		button.menu = Menu(*this.menuActions);
 		^button;
 	}
