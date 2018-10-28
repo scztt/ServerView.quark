@@ -354,7 +354,7 @@ ServerSelectorWidget : ServerWidgetBase {
 
 			serverName = "% %".format(
 				Server.default.serverRunning.if("◎", "◉");
-				Server.default.name.toUpper
+				Server.default.name.asString.toUpper
 			);
 
 			string = "% (%)".format(
