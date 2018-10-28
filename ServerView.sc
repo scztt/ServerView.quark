@@ -201,7 +201,8 @@ ServerViewAction {
 }
 
 ServerSelectorWidget : ServerWidgetBase {
-	var serverList, view, list, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView;
+	var serverList, view, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView;
+	var connections;
 
 	actions {
 		var actions = [
@@ -249,15 +250,19 @@ ServerSelectorWidget : ServerWidgetBase {
 		];
 
 		actions = [
-			ServerViewAction("Boot", ' ',
+
+			ServerViewAction("Boot", 'b',
 				{ if(server.serverRunning.not) { server.boot } }),
 
-			ServerViewAction("Quit", ' ',
+			ServerViewAction("Reboot", 'none',
+				{ if(server.serverRunning.not) { server.reboot } }),
+
+			ServerViewAction("Quit", 'none',
 				{ if(server.serverRunning) { server.quit } }),
 		] ++ actions;
 
 		actions = actions ++ [
-			ServerViewAction("Kill all servers", ' ',
+			ServerViewAction("Kill all servers", 'none',
 				{ Server.killAll }),
 			ServerViewAction("Close Server View", 27.asAscii.asSymbol,
 				{ parent.window.rememberPosition(\ServerView); parent.close() }),
@@ -267,49 +272,151 @@ ServerSelectorWidget : ServerWidgetBase {
 		^actions
 	}
 
-	view {
-		controller = (SimpleController(server)
-			.put(\serverRunning, this.onRunning(_,_))
-			.put(\default, this.onDefault(_,_))
-		);
+	menuActions {
+		^[
+			MenuAction("Query nodes", {
+				server.queryAllNodes(true)
+			}).shortcut_("n"),
 
-		serverList = [Server.internal, Server.local];
-		view = View();
-		list = PopUpMenu();
-		list.items = serverList.collect({
+			MenuAction("Level meters", {
+				server.tryPerform(\meter)
+			}).shortcut_("l"),
+
+			MenuAction("Tree view", {
+				if(server.serverRunning) { TreeSnapshotView(server).autoUpdate().front() }
+			}).shortcut_("p"),
+
+			MenuAction("Scope", {
+				var scopeWin = server.scope(server.options.numOutputBusChannels);
+				scopeWin.scopeView.waveColors = 10.collect {
+					| i |
+					var h, s, v, a;
+					#h, s, v, a = brightBlue.asHSV();
+					h = (h + (i * 0.68)).mod(1).min(1).max(0);
+					Color.hsv(h, s, v, a);
+				};
+			}).shortcut_("s"),
+
+			MenuAction("Frequency scope", {
+				server.freqscope
+			}).shortcut_("f"),
+
+			MenuAction("Dump OSC", {
+				|m|
+				if (server.isLocal or: { server.inProcess }) {
+					server.dumpOSC((server.dumpMode + 1) % 2);
+					m.checked = (server.dumpMode > 0);
+				}
+			}).shortcut_("d"),
+
+			MenuAction("Mute", {
+				|m|
+				if (server.volume.isMuted) { server.unmute } { server.mute };
+				m.checked = server.volume.isMuted;
+			}).checked_(server.volume.isMuted),
+
+			MenuAction("Reset volume", {
+				server.volume = 0
+			}).shortcut_("0"),
+
+			MenuAction("Options...", {
+				if (optionsView.isNil) {
+					optionsView = ServerOptionsGui(server);
+					optionsView.parent.autoRememberPosition(\ServerOptionsGui);
+					optionsView.parent.onClose_({ optionsView = nil })
+				};
+			}).shortcut_("o"),
+
+			MenuAction.separator,
+
+			MenuAction("Kill all servers", { Server.killAll }),
+			MenuAction("Close Window", {
+				parent.window.rememberPosition(\ServerView); parent.close()
+			})
+		]
+	}
+
+	makeServerMenu {
+		var menu, button, onServersChanged;
+		var serverRunningConnection;
+
+		button = Button()
+					.canFocus_(false)
+					.fixedHeight_(26)
+					.fixedWidth_(240);
+
+		onServersChanged = {
+			|what, obj, server|
+			var string, serverName, color;
+
+			serverRunningConnection.free;
+			serverRunningConnection = Server.default.signal(\serverRunning).connectTo(onServersChanged).defer;
+
+			serverName = "% %".format(
+				Server.default.serverRunning.if("◎", "◉");
+				Server.default.name.toUpper
+			);
+
+			string = "% (%)".format(
+				serverName,
+				Server.default.serverRunning.if("running", "stopped")
+			);
+			color = Server.default.serverRunning.if(faintGreen, Color.grey(0.9).alpha_(0.6));
+
+			button.states = [[
+				string,
+				color,
+				Color.clear
+			]];
+
+			button.font = this.font(18, bold: Server.default.serverRunning);
+		};
+
+		connections = connections.addAll([
+			Server.signal(\serverAdded).connectTo(onServersChanged).defer,
+			Server.default.signal(\default).connectTo(onServersChanged).defer // all servers get notified, so no need to register everywhere
+		]);
+
+		onServersChanged.();
+
+		button.menu = MainMenu.serversMenu;
+		^button;
+	}
+
+	makeOptionsMenu {
+		var button;
+		button = Button()
+					.fixedSize_(32@20)
+					.states_([[nil, Color.clear, Color.grey.alpha_(0.2)]])
+					.canFocus_(false)
+					.icon_(Material("settings", 18, color:Color.white.alpha_(0.5)))
+					.iconSize_(16);
+		button.menu = Menu(*this.menuActions);
+		^button;
+	}
+
+	makeServerMenuOld {
+		var serverList, servers;
+
+		servers = Server.all.asArray;
+		serverList = PopUpMenu();
+		serverList.items = Server.all.collect({
 			| s |
 			s.name;
 		});
-		list.value = serverList.indexOf(server);
-		list.action = {
+		serverList.value = servers.indexOf(server);
+		serverList.action = {
 			|v|
-			parent.server = serverList[v.value];
+			parent.server = servers[v.value];
 		};
-		list.maxHeight_(18);
-		list.font = this.font(12, false);
-		view.layout_(
-			HLayout(
-				//StaticText().string_("SUPERCOLLIDER").font_(this.font(16, true)),
-				bootButton = (StaticText()
-					.minWidth_(180)
-					.font_(this.font(15, true))
-					//					.maxSize_(22, 22)
-					.mouseUpAction_(this.bootAction(_))
-				),
-				//runningText = StaticText().font_(this.font(16, true)).align_(\center),
-				nil,
-				defaultButton = (Button()
-					.action_(this.defaultAction(_))
-					.maxHeight_(18).maxWidth_(22)
-					.canFocus_(false)
-					.font_(this.font(12, true))
-				),
-				[list, \align: \right],
-				[optionsMenu = PopUpMenu().maxHeight_(18).maxWidth_(22), \align: \right]
-			).margins_(0).spacing_(0)
-		);
+		serverList.maxHeight_(18);
+		serverList.font = this.font(12, false);
 
-		this.onDefault;
+		^serverList
+	}
+
+	makeOptionsMenuOld {
+		var optionsMenu = PopUpMenu().maxHeight_(18).maxWidth_(22);
 
 		optionsMenu.allowsReselection = true;
 		optionsMenu.items = [""] ++ this.actions.collectAs(_.name, Array);
@@ -319,7 +426,35 @@ ServerSelectorWidget : ServerWidgetBase {
 			this.actions.detect({ |action| action.name == name }).value(server)
 		});
 
-		this.onRunning();
+		^optionsMenu
+	}
+
+	view {
+		var menus, menuSupport = \Menu.asClass.notNil;
+
+		controller = (SimpleController(server)
+			// .put(\serverRunning, this.onRunning(_,_))
+			.put(\default, this.onDefault(_,_))
+		);
+
+		serverList 		= menuSupport.if({ this.makeServerMenu }, { this.makeServerMenuOld });
+		optionsMenu		= menuSupport.if({ this.makeOptionsMenu }, { this.makeOptionsMenuOld });
+
+		view = View();
+		view.layout_(
+			HLayout(
+				[serverList, \align: \left],
+				defaultButton = (Button()
+					.action_(this.defaultAction(_))
+					.maxHeight_(18).maxWidth_(22)
+					.canFocus_(false)
+					.font_(this.font(12, true))
+				),
+				nil,
+				optionsMenu
+			).margins_(0).spacing_(0)
+		);
+
 		this.onDefault();
 
 		view.onClose_({ controller.remove() });
@@ -341,29 +476,15 @@ ServerSelectorWidget : ServerWidgetBase {
 		Server.killAll;
 	}
 
-	onRunning {
-		if (server.serverRunning) {
-			bootButton.string = "◉ RUNNING";
-			bootButton.stringColor = faintGreen;
-			// runningText.string = "running";
-			// runningText.stringColor = faintGreen;
-		} {
-			bootButton.string = "◎ INACTIVE";
-			bootButton.stringColor = Color.grey;
-			// runningText.string = "inactive";
-			// runningText.stringColor = Color.grey;
-		}
-	}
-
 	onDefault {
 		if (Server.default == server) {
 			defaultButton
-			.states_([["D", nil, faintGreen]])
-			.font_(this.font(12, true))
+				.states_([["D", faintGreen, Color.grey.alpha_(0.2)]])
+				.font_(this.font(12, true))
 		} {
 			defaultButton
-			.states_([["D"]])
-			.font_(this.font(12, false))
+				.states_([["D", nil, Color.grey.alpha_(0.2)]])
+				.font_(this.font(11, false, Color.grey.alpha_(0.2)))
 		}
 	}
 
