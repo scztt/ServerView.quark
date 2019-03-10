@@ -204,7 +204,7 @@ ServerViewAction {
 }
 
 ServerSelectorWidget : ServerWidgetBase {
-	var serverList, view, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView;
+	var serverList, view, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView, currentServer;
 	var connections;
 
 	actions {
@@ -339,6 +339,10 @@ ServerSelectorWidget : ServerWidgetBase {
 		]
 	}
 
+	currentServer {
+		^currentServer ?? { Server.default } ?? { Server.local }
+	}
+
 	makeServerMenu {
 		var menu, button, onServersChanged;
 		var serverRunningConnection;
@@ -350,21 +354,23 @@ ServerSelectorWidget : ServerWidgetBase {
 
 		onServersChanged = {
 			|what, obj, server|
-			var string, serverName, color;
+			var string, serverName, color, displayedServer;
+
+			displayedServer = this.currentServer();
 
 			serverRunningConnection.free;
-			serverRunningConnection = Server.default.signal(\serverRunning).connectTo(onServersChanged).defer;
+			serverRunningConnection = displayedServer.signal(\serverRunning).connectTo(onServersChanged).defer;
 
 			serverName = "% %".format(
-				Server.default.serverRunning.if("◎", "◉");
-				Server.default.name.asString.toUpper
+				displayedServer.serverRunning.if("◎", "◉");
+				displayedServer.name.asString.toUpper
 			);
 
 			string = "% (%)".format(
 				serverName,
-				Server.default.serverRunning.if("running", "stopped")
+				displayedServer.serverRunning.if("running", "stopped")
 			);
-			color = Server.default.serverRunning.if(faintGreen, QtGUI.palette.buttonText.alpha_(0.6));
+			color = displayedServer.serverRunning.if(faintGreen, QtGUI.palette.buttonText.alpha_(0.6));
 
 			button.states = [[
 				string,
@@ -372,17 +378,31 @@ ServerSelectorWidget : ServerWidgetBase {
 				Color.clear
 			]];
 
-			button.font = this.font(18, bold: Server.default.serverRunning);
+			button.font = this.font(18, bold: displayedServer.serverRunning);
 		};
 
 		connections = connections.addAll([
 			Server.signal(\serverAdded).connectTo(onServersChanged).defer,
-			Server.default.signal(\default).connectTo(onServersChanged).defer // all servers get notified, so no need to register everywhere
+			this.currentServer().signal(\default).connectTo(onServersChanged).defer // all servers get notified, so no need to register everywhere
 		]);
 
 		onServersChanged.();
-
 		button.menu = MainMenu.serversMenu;
+
+		{
+			connections.add(
+				MainMenu.serversMenu.signal(\triggered)
+				.connectTo({
+					|obj, what, action|
+					Server.all.detect({ |s| action.string.contains(s.name.asString) }) !? {
+						|s|
+						currentServer = s;
+						onServersChanged.();
+					}
+				})
+			);
+		}.defer;
+
 		^button;
 	}
 
@@ -984,8 +1004,8 @@ ScopeWidget : ServerWidgetBase {
 				{
 					meters.do {
 						|m|
-						m.warning = -12.linlin(this.dBLow, 0, 0, 1);
-						m.critical = -3.linlin(this.dBLow, 0, 0, 1);
+						m.warning = -3.linlin(this.dBLow, 0, 0, 1);
+						m.critical = -0.1.linlin(this.dBLow, 0, 0, 1);
 					}
 				},
 				this.methodSlot("updateMenus()")
@@ -1087,6 +1107,8 @@ ScopeWidget : ServerWidgetBase {
 				.minWidth_(2)
 				.stepWidth_(1)
 				.style_(1)
+				.warning_(-6.dbamp)
+				.critical_(-0.1.dbamp)
 				.drawsPeak_(true)
 			)
 		};
