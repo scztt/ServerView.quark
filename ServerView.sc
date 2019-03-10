@@ -9,13 +9,16 @@ ServerView : Singleton {
 		actions = IdentityDictionary();
 
 		ServerBoot.add(this);
+		Platform.makeServerWindowAction = {
+			this.doOnServerBoot();
+		}
 	}
 
 	*doOnServerBoot {
 		|server|
 		if (showOnBoot && serverViewShown.not) {
 			serverViewShown = true;
-			server.makeGui;
+			ServerView().front;
 		}
 	}
 
