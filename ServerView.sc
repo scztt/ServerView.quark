@@ -396,6 +396,7 @@ ServerSelectorWidget : ServerWidgetBase {
 		]);
 
 		onServersChanged.();
+		MainMenu.tryPerform(\initBuiltInMenus);
 		button.menu = MainMenu.serversMenu;
 
 		{
