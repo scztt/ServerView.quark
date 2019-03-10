@@ -1,7 +1,7 @@
 ServerView : Singleton {
 	classvar panelTypes, <>widgets, <actions, <>border=true,
 	showOnBoot=true, serverViewShown=false;
-	var <>view, <window, widgetLayout, <server, <>widgets, containers;
+	var <>view, <window, widgetLayout, server, <>widgets, containers;
 
 	*initClass {
 		panelTypes = IdentityDictionary();
@@ -19,11 +19,24 @@ ServerView : Singleton {
 		if (showOnBoot && serverViewShown.not) {
 			serverViewShown = true;
 			ServerView().front;
+		};
+
+		if (Server.all.select(_.serverRunning).size == 0) {
+			// If no other servers running, set this one to display
+			ServerView().server = server;
 		}
 	}
 
 	*default {
 		^Server.default.name;
+	}
+
+	server {
+		var runningServers = Server.all.select(_.serverRunning).asArray;
+		^server
+			?? { if (runningServers.size == 1) { runningServers[0] } }
+			?? { Server.default }
+			?? { Server.local }
 	}
 
 	set {}
@@ -34,7 +47,7 @@ ServerView : Singleton {
 
 	front {
 		if (server.isNil) {
-			server = Server.default;
+			//server = Server.default;
 		};
 		if (view.isNil) {
 			this.createView();
@@ -74,7 +87,7 @@ ServerView : Singleton {
 		([ServerSelectorWidget] ++ this.class.widgets).do {
 			|wClass, i|
 			var container, widget;
-			widget = wClass.new(server, this).view();
+			widget = wClass.new(this.server, this).view();
 			widgets.add(widget);
 			container = View().layout_(
 				VLayout(
@@ -116,9 +129,9 @@ ServerView : Singleton {
 
 	registerKeyAction {
 		| key, action |
-		if (actions[key].notNil) {
-			"ServerView - Overriding an existing action for key %".format(key).warn;
-		};
+		// if (actions[key].notNil) {
+		// 	"ServerView - Overriding an existing action for key %".format(key).warn;
+		// };
 		actions[key] = action;
 	}
 
@@ -204,7 +217,7 @@ ServerViewAction {
 }
 
 ServerSelectorWidget : ServerWidgetBase {
-	var serverList, view, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView, currentServer;
+	var serverList, view, runningText, bootButton, defaultButton, optionsMenu, optionsView, controller, serverQuitView;
 	var connections;
 
 	actions {
@@ -339,10 +352,6 @@ ServerSelectorWidget : ServerWidgetBase {
 		]
 	}
 
-	currentServer {
-		^currentServer ?? { Server.default } ?? { Server.local }
-	}
-
 	makeServerMenu {
 		var menu, button, onServersChanged;
 		var serverRunningConnection;
@@ -356,7 +365,7 @@ ServerSelectorWidget : ServerWidgetBase {
 			|what, obj, server|
 			var string, serverName, color, displayedServer;
 
-			displayedServer = this.currentServer();
+			displayedServer = parent.server;
 
 			serverRunningConnection.free;
 			serverRunningConnection = displayedServer.signal(\serverRunning).connectTo(onServersChanged).defer;
@@ -383,7 +392,7 @@ ServerSelectorWidget : ServerWidgetBase {
 
 		connections = connections.addAll([
 			Server.signal(\serverAdded).connectTo(onServersChanged).defer,
-			this.currentServer().signal(\default).connectTo(onServersChanged).defer // all servers get notified, so no need to register everywhere
+			parent.server.signal(\default).connectTo(onServersChanged).defer // all servers get notified, so no need to register everywhere
 		]);
 
 		onServersChanged.();
@@ -396,7 +405,7 @@ ServerSelectorWidget : ServerWidgetBase {
 					|obj, what, action|
 					Server.all.detect({ |s| action.string.contains(s.name.asString) }) !? {
 						|s|
-						currentServer = s;
+						parent.server = s;
 						onServersChanged.();
 					}
 				})
