@@ -1,6 +1,6 @@
 ServerView : Singleton {
 	classvar panelTypes, <>widgets, <actions, <>border=true,
-	showOnBoot=true, serverViewShown=false;
+	>showOnBoot=true, serverViewShown=false;
 	var <>view, <window, widgetLayout, server, <>widgets, containers;
 
 	*initClass {
